@@ -11,6 +11,7 @@ pub trait ArrayVectorSpace<T> {
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
     fn scal_mul(self, rhs: T) -> Self;
+    fn clamp(self, min: T, max: T) -> Self;
     fn normalized(self) -> Self;
 }
 
@@ -34,6 +35,9 @@ macro_rules! impl_vector_space {
             }
             fn scal_mul(self, rhs: $t) -> Self {
                 self * rhs
+            }
+            fn clamp(self, min: $t, max: $t) -> Self {
+                self.clamp(min, max)
             }
             fn normalized(self) -> Self {
                 1.0
@@ -74,6 +78,10 @@ macro_rules! impl_vector_space {
                 self.iter_mut().for_each(|v| *v = v.scal_mul(rhs));
                 self
             }
+            fn clamp(mut self, min: $t, max: $t) -> Self {
+                self.iter_mut().for_each(|v| *v = v.clamp(min, max));
+                self
+            }
             fn normalized(self) -> Self {
                 let n = self.norm2().sqrt();
                 self.scal_mul(n.recip())
@@ -90,7 +98,8 @@ pub trait ArrayVectorSpaceMut<T> {
     fn mut_sub(&mut self, rhs: &Self);
     fn mut_mul(&mut self, rhs: &Self);
     fn mut_div(&mut self, rhs: &Self);
-    fn mut_scal_mul(&mut self, rhs: &T);
+    fn mut_scal_mul(&mut self, rhs: T);
+    fn mut_clamp(&mut self, min: T, max: T);
     fn mut_normalized(&mut self)
     where
         Self: ArrayVectorSpace<T>;
@@ -111,8 +120,11 @@ macro_rules! impl_vector_space {
             fn mut_div(&mut self, rhs: &Self) {
                 *self /= *rhs
             }
-            fn mut_scal_mul(&mut self, rhs: &$t) {
-                *self *= *rhs
+            fn mut_scal_mul(&mut self, rhs: $t) {
+                *self *= rhs
+            }
+            fn mut_clamp(&mut self, min: $t, max: $t) {
+                *self = self.clamp(min, max);
             }
             fn mut_normalized(&mut self) {
                 *self = 1.0
@@ -139,15 +151,18 @@ macro_rules! impl_vector_space {
                     .zip(rhs.into_iter())
                     .for_each(|(v, w)| v.mut_div(w));
             }
-            fn mut_scal_mul(&mut self, rhs: &$t) {
+            fn mut_scal_mul(&mut self, rhs: $t) {
                 self.iter_mut().for_each(|v| v.mut_scal_mul(rhs));
+            }
+            fn mut_clamp(&mut self, min: $t, max: $t) {
+                self.iter_mut().for_each(|v| v.mut_clamp(min, max));
             }
             fn mut_normalized(&mut self)
             where
                 Self: ArrayVectorSpace<$t>,
             {
                 let n = self.norm2().sqrt();
-                self.mut_scal_mul(&n.recip())
+                self.mut_scal_mul(n.recip())
             }
         }
     };
